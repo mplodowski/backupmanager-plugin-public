@@ -17,7 +17,7 @@ Use October [Marketplace](http://octobercms.com/help/site/marketplace) and __Add
 
 ## Requirements
 
-This plugin requires **PHP 7 or higher** with the ZIP module and **Laravel 5.5 or higher**. It's not compatible with Windows servers.
+This plugin requires **PHP 7.1 or higher** with the ZIP module and **Laravel 5.5 or higher**. It's not compatible with Windows servers.
 
 The plugin needs free disk space where it can create backups. Ensure that you have at least as much free space as the total size of the files you want to backup.
 
@@ -29,7 +29,7 @@ Make sure `mongodump` is installed on your system if you want to backup Mongo da
 
 ## Support
 
-Please use [GitHub Issues Page](https://github.com/mplodowski/backupmanager-plugin/issues) to report any issues with plugin.
+Please use [GitHub Issues Page](https://github.com/mplodowski/backupmanager-plugin-public/issues) to report any issues with plugin.
 
 > Reviews should not be used for getting support or reporting bugs, if you need support please use the Plugin support link.
 
@@ -97,6 +97,22 @@ Property | Description
 Configure how often plugin will run automatic tasks for database backup, application backup and clean old backups actions.
 
 > **Important note:** For scheduled tasks to operate correctly you must set up the scheduler: https://octobercms.com/docs/setup/installation#crontab-setup
+
+### Security
+
+Here you can specify password protection for backups. You will be asked to enter this password in order to unzip backup file.
+
+#### Password
+
+Remember to use long strings and to keep your password safe – without it you will never be able to open your backup.
+
+Leave it blank if you want to keep your backup without a password.
+
+#### Encryption
+
+Using the *PKWARE/ZipCrypto* crypto gives you the best portability as most operating systems can natively unzip the file – however, ZipCrypto might be weak. The Winzip AES-methods on the other hand might require a separate app and/or licence to be able to unzip depending on your OS; suggestions for macOS are [Keka](http://www.kekaosx.com/en/) and [Stuffit Expander](https://itunes.apple.com/us/app/stuffit-expander-16/id919269455).
+
+> **Important note:** When zipping very large files ZipCrypto might be very inefficient as the entire data-set will have to be loaded into memory to perform the encryption, if the zipped file's content is bigger than your available RAM you will run out of memory.
 
 ### Cleanup
 
