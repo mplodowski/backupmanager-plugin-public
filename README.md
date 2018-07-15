@@ -14,6 +14,7 @@ Use October [Marketplace](http://octobercms.com/help/site/marketplace) and __Add
 * MySQL, PostgreSQL, SQLite and Mongo databases support
 * Configurable scheduler for automatic backups
 * Extensive settings options
+* Encryption and password protection
 
 ## Requirements
 
