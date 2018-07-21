@@ -25,4 +25,4 @@ Plugin requires to set database port in config. This only affects older installa
 <a name="upgrade-3.0.0"></a>
 ## Upgrading To 3.0.0
 
-Main dependency `spatie/laravel-backup` was updated to newest version. From now on plugin requires PHP >= 7.1.
+Main dependency spatie/laravel-backup was updated to 5.6.4 version.

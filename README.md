@@ -18,7 +18,7 @@ Use October [Marketplace](http://octobercms.com/help/site/marketplace) and __Add
 
 ## Requirements
 
-This plugin requires **PHP 7.1 or higher** with the ZIP module and **Laravel 5.5 or higher**. It's not compatible with Windows servers.
+This plugin requires **PHP 7.0 or higher** with the ZIP module and **Laravel 5.5 or higher**. It's not compatible with Windows servers.
 
 The plugin needs free disk space where it can create backups. Ensure that you have at least as much free space as the total size of the files you want to backup.
 
