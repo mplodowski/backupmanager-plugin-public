@@ -20,6 +20,7 @@ return [
         'delete_selected_confirm' => 'Are you sure you want to remove selected backups?',
         'list_title' => 'Manage Backups',
         'preview_log' => 'View latest backup log',
+        'settings' => 'Settings',
     ],
     'permissions' => [
         'access_backups' => 'Manage backups',
@@ -56,9 +57,16 @@ return [
         'clean_scheduler' => 'Cleanup old backups',
         'zip_password' => 'Password',
         'zip_password_encryption' => 'Password encryption',
+        'actions' => 'Actions',
+        'database_section' => 'Database',
+        'files_section' => 'Files',
+        'exclude_tables' => 'Exclude tables',
+        'notification_events' => 'Notification events',
+        'notification_emails' => 'Notification emails',
     ],
     'comment' => [
         'databases' => 'The names of the connections to the databases that should be backed up. MySQL, PostgreSQL, SQLite and Mongo databases are supported.',
+        'exclude_tables' => 'Those tables will not be included in backup.',
         'include' => 'The list of directories and files that will be included in the backup.',
         'exclude' => 'These directories and files will be excluded from the backup. Directories used by the backup process will automatically be excluded.',
         'gzip_database_dump' => 'The database dump can be gzipped to decrease disk space usage.',
@@ -73,7 +81,8 @@ return [
         'keep_yearly' => 'The number of years for which one yearly backup must be kept.',
         'delete_oldest_when_mb' => 'After cleaning up the backups remove the oldest backup until this amount of megabytes has been reached.',
         'password' => 'Remember to use long strings and to keep your password safe. Without it you will never be able to open your backup.',
-        'encryption' => 'Please read more about this in plugin documentation.',
+        'encryption' => 'Please read more about this in plugin <a target="_blank" href="https://github.com/mplodowski/backupmanager-plugin-public/blob/master/README.md#security">documentation.</a>',
+        'notification_emails' => 'E-mail addresses that will receive notification.',
     ],
     'tab' => [
         'source' => 'Source',
@@ -81,6 +90,7 @@ return [
         'cleanup' => 'Cleanup',
         'scheduler' => 'Scheduler',
         'security' => 'Security',
+        'notifications' => 'Notifications',
     ],
     'clean' => [
         'success' => 'The cleaning process was performed successfully.',
@@ -96,15 +106,26 @@ return [
         'weekly' => 'Weekly',
         'monthly' => 'Monthly',
         'yearly' => 'Yearly',
-        'hint' => 'Setting up the scheduler',
+        'hint' => 'Instruction how to setting up the scheduler in OctoberCMS',
     ],
     'issue' => [
         'memory_limit' => 'Your current memory limit setting in php.ini is :limit. It is not enough for this plugin to work correctly. Please set at least 128M.',
+        'proc_open' => "Function 'proc_open' is required, but it is disabled by the 'disable_functions' ini setting.",
     ],
     'log' => [
         'empty' => 'Log is empty.',
     ],
     'password' => [
         'hint' => 'Here you can specify password protection for backups. You will be asked to enter this password in order to unzip backup file.',
+    ],
+    'help' => [
+        'download' => 'Download',
+        'delete' => 'Delete',
+    ],
+    'notification' => [
+        'backup_success' => 'Backup was successful',
+        'backup_failed' => 'Backup has failed',
+        'cleanup_success' => 'Cleanup was successful',
+        'cleanup_failed' => 'Cleanup has failed',
     ],
 ];

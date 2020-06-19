@@ -15,14 +15,14 @@ Plugin settings was reset to defaults, so please review and update them for your
 <a name="upgrade-2.1.0"></a>
 ## Upgrading To 2.1.0
 
-Dropbox integration was moved to external [Dropbox Adapter](https://octobercms.com/plugin/renatio-dropboxadapter) plugin. Read this plugin documentation how to configure Dropbox filesystem.
+Dropbox's integration was moved to external [Dropbox Adapter](https://octobercms.com/plugin/renatio-dropboxadapter) plugin. Read this plugin documentation how to configure Dropbox filesystem.
 
 <a name="upgrade-2.1.4"></a>
 ## Upgrading To 2.1.4
 
-Plugin requires to set database port in config. This only affects older installations of OctoberCMS.
+Plugin requires setting database port in a config. This only affects older installations of OctoberCMS.
 
 <a name="upgrade-3.0.0"></a>
 ## Upgrading To 3.0.0
 
-Main dependency spatie/laravel-backup was updated to 5.6.4 version.
+Main dependency `spatie/laravel-backup` was updated to 5.6.4 version.

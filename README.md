@@ -9,16 +9,20 @@ The backup is a zip file that contains all files in the directories you specify 
 Use October [Marketplace](http://octobercms.com/help/site/marketplace) and __Add to project__ button.
 
 ## Features
-* Backup database and application files with mouse click
-* Amazon S3, Rackspace, Dropbox Cloud storage support
+* A backup database and application files with mouse click
+* FTP, Amazon S3, Rackspace, Dropbox Cloud storage support
 * MySQL, PostgreSQL, SQLite and Mongo databases support
-* Configurable scheduler for automatic backups
+* A configurable scheduler for automatic backups
+* Automatic cleanup old backups
 * Extensive settings options
 * Encryption and password protection
+* Mail notifications
 
 ## Requirements
 
-This plugin requires **PHP 7.0 or higher** with the ZIP module and **Laravel 5.5 or higher**. It's not compatible with Windows servers.
+This plugin requires **PHP 7.1 or higher** with the ZIP module and **Laravel 5.5 or higher**. It's not compatible with Windows servers.
+
+Make sure `proc_open` is available on your PHP installation.
 
 The plugin needs free disk space where it can create backups. Ensure that you have at least as much free space as the total size of the files you want to backup.
 
@@ -50,9 +54,9 @@ After installation plugin will register backend **Backups** menu position.
 
 **Delete selected** button will delete selected backups. This action is irreversible, so be careful.
 
-**Clean old backups** button will cleanup old backups based on plugin **Settings**.
+**Clean old backups** button will cleanup old backups based on the plugin **Settings**.
 
-**View latest backup log** button will show latest backup log in popup window.
+**View the latest backup log** button will show the latest backup log in popup window.
 
 > **Important note:** Log is not created when you manually run console command.
 
@@ -63,7 +67,7 @@ Backups names are created dynamically from current datetime. This allows to easi
 
 ## Maximum execution time error
 
-When you experience **Maximum execution time of .. seconds exceeded** error than most likely application backup is to large and PHP cannot do this process in a single request.
+When you experience **Maximum execution time of ... seconds exceeded** error than most likely application backup is to large and PHP cannot do this process in a single request.
 
 > What can I do?
 
@@ -73,7 +77,7 @@ When you experience **Maximum execution time of .. seconds exceeded** error than
 
 ## Settings
 
-This plugin ships with a settings page. Go to **Settings** and you will see a menu item **Backup Manager** listed under **Backup** section.
+This plugin ships with settings page. Go to **Settings**, and you will see a menu item **Backup Manager** listed under **Backup** section.
 
 ### Source
 
@@ -101,7 +105,7 @@ Configure how often plugin will run automatic tasks for database backup, applica
 
 ### Security
 
-Here you can specify password protection for backups. You will be asked to enter this password in order to unzip backup file.
+Here you can specify password protection for backups. You will be asked to enter this password in order to unzip the backup file.
 
 #### Password
 
@@ -128,7 +132,7 @@ Property | Description
 
 ### Dumping the database
 
-`mysqldump` and `pg_dump` are used to dump the database. If they are not installed in a default location, you can add a key named `dump.dump_binary_path` in October `database.php` config file. Only fill in the path to the binary. Do not include the name of the binary itself.
+The `mysqldump`/`pg_dump` are used to dump the database. If they are not installed in a default location, you can add a key named `dump.dump_binary_path` in October `database.php` config file. Only fill in the path to the binary. Do not include the name of the binary itself.
 
 If your database dump takes a long time, you might exceed the default timeout of 60 seconds. You can set a higher (or lower) limit by providing a `dump.timeout` config key which specifies, in seconds, how long the command may run.
 
@@ -150,16 +154,19 @@ Here's an example for MySQL:
 	],
 ```
 
+There is also a setting in backend area to exclude database tables from backup. By default, it will exclude logs tables.
+
 ## Filesystems
 
 Plugin supports following storage drivers:
 
 * Local Storage
+* FTP Storage
 * Amazon S3 Cloud Storage
 * Rackspace Cloud Storage
 * Dropbox Cloud Storage
 
-More drivers can be added on feature requests. Just create an issue with **[Feature Request]** in title and I will see what can be done.
+More drivers can be added on feature requests. Just create an issue with **[Feature Request]** in title, and I will see what can be done.
 
 The filesystem configuration file is located at **config/filesystems.php**. Within this file you may configure all of your "disks". Example configurations for each supported driver is included in the configuration file. So, simply modify the configuration to reflect your storage preferences and credentials!
 
@@ -177,10 +184,38 @@ Read this external plugin documentation and configure Dropbox filesystem.
 
 Go to plugin **Settings** and check `dropbox` disk in **Destination** tab.
 
+### FTP configuration
+
+Add new filesystem disk in `disks` array in `config/filesystems.php`:
+
+```
+'ftp' => [
+    'driver'   => 'ftp',
+    'host'     => '',
+    'username' => '',
+    'password' => '',
+    'root'     => '',
+    'ssl'      => true,
+],
+```
+
+Go to plugin **Settings** and check `ftp` disk in **Destination** tab.
+
 ## Console commands
 
-Plugin will create three new artisan commands for working with console.
+Plugin will create three new artisan commands for working with a console.
 
 **backup:run** command will run new backup process. Add **--only-db** option for backup only database.
 
 **backup:clean** command will run clean old backups process.
+
+## Mail notifications
+
+Plugin can send notifications when:
+
+- backup was successful,
+- backup has failed,
+- cleanup was successful,
+- cleanup has failed.
+
+To configure this feature go to plugin **Settings** and **Notifications** tab.

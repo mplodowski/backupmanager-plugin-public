@@ -12,15 +12,9 @@
         }
     ],
     "require": {
-        "php": ">=7.0",
-        "composer/installers": "~1.0",
-        "spatie/laravel-backup": "5.6.4",
-        "illuminate/console": "~5.5.0",
-        "illuminate/contracts": "~5.5.0",
-        "illuminate/events": "~5.5.0",
-        "illuminate/filesystem": "~5.5.0",
-        "illuminate/support": "~5.5.0",
-        "illuminate/notifications": "~5.5.0",
-        "olssonm/laravel-backup-shield": "^2.2"
+        "php": ">=7.1",
+        "spatie/laravel-backup": "~5.0",
+        "symfony/process": "^3.4",
+        "olssonm/laravel-backup-shield": "~2.4"
     }
 }
