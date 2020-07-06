@@ -1,5 +1,9 @@
 # Backup Manager Plugin
 
+**Demo URL:** https://october-demo.renatio.com/backend/backend/auth/signin  
+**Login:** backup  
+**Password:** backup
+
 Backup your whole October application with ease.
 
 The backup is a zip file that contains all files in the directories you specify along with a dump of your database. The backup can be stored on any of the filesystems you have configured in October. You can backup your application to multiple filesystems at once. In addition to making the backup, the plugin can also clean up old backups.
