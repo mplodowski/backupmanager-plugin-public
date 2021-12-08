@@ -4,15 +4,15 @@
 **Login:** backup  
 **Password:** backup  
 
-Backup your whole October application with ease.
+Backup your application with ease.
 
-> This plugin is fully compatible with the latest version of OctoberCMS 2.x from version 4.2.0.
+> This plugin is fully compatible with the latest version of October CMS 2.x from version 4.2.0.
 
-> The latest version that supports OctoberCMS 1.x is version 4.1.0.
+> The latest version that supports October CMS 1.x is version 4.1.0.
 
 The backup is a zip file that contains all files in the directories you specify along with a dump of your database. The backup can be stored on any of the filesystems you have configured in October. You can backup your application to multiple filesystems at once. In addition to making the backup, the plugin can also clean up old backups and monitor health of all backups.
 
-![OctoberCMS Backup Manager](https://octobercms.com/storage/app/uploads/public/615/041/654/615041654ed37598938006.png)
+![October CMS Backup Manager](https://octobercms.com/storage/app/uploads/public/615/041/654/615041654ed37598938006.png)
 
 ## Features
 * A backup database and application files with mouse click
@@ -60,3 +60,196 @@ Please use [GitHub Issues Page](https://github.com/mplodowski/backupmanager-plug
 > Reviews should not be used for getting support or reporting bugs, if you need support please use the Plugin support link.
 
 Icon made by [Darius Dan](https://www.flaticon.com/authors/darius-dan) from [www.flaticon.com](https://www.flaticon.com/).
+
+# Documentation
+
+## Usage
+
+After installation plugin will register backend **Backups** menu position.
+
+**Application backup** button will create backup with all project files and database dump file. To change which files will be included see plugin **Settings**. Default settings will take project **base path** and exclude **vendor** and **node_modules** directories from it.
+
+**Database backup** button will create only database backup.
+
+**Clean old backups** button will clean up old backups based on the plugin **Settings**.
+
+**Backup log** button will show the latest backup log in popup window.
+
+> **Important note:** Log is not created when you manually run console command.
+
+**Settings** button will redirect you to the plugin settings.
+
+## Maximum execution time error
+
+When you experience **Maximum execution time of ... seconds exceeded** error than most likely application backup is too large and PHP cannot do this process in a single request.
+
+> What can I do?
+
+1. Change **max_execution_time** property value in your PHP configuration.
+2. Use [Scheduler](#scheduler) to perform automatic backups (recommended).
+3. Use [Console commands](#console-commands) to perform backups.
+
+## Settings
+
+This plugin ships with settings page. Go to **Settings**, and you will see a menu item **Backup Manager** listed under **Backup** section.
+
+### Source
+
+Property | Description
+--------------------- | ---------------------
+**Databases** | The names of the connections to the databases that should be backed up. MySQL, PostgreSQL, SQLite and Mongo databases are supported.
+**Exclude tables** | Those tables will not be included in backup.
+**Gzip database dump** | The database dump can be gzipped to decrease disk space usage.
+**Follow links** | Determines if symlinks should be followed.
+**Ignore unreadable directories** | Determines if it should avoid unreadable folders.
+**Include** | The list of directories and files that will be included in the backup. Leave empty to backup whole October project.
+**Exclude** | These directories and files will be excluded from the backup. Directories used by the backup process will automatically be excluded.
+
+### Destination
+
+Property | Description
+--------------------- | ---------------------
+**Filename prefix** | The filename prefix used for the backup zip file.
+**Name** | The name of this application.
+**Disks** | The disk names on which the backups will be stored.
+
+### Scheduler
+
+Configure how often plugin will run automatic tasks for database backup, application backup, clean old backups and monitor the health of all backups actions.
+
+> **Important note:** For scheduled tasks to operate correctly you must set up the scheduler: https://octobercms.com/docs/setup/installation#crontab-setup
+
+### Security
+
+Here you can specify password protection for backups. You will be asked to enter this password in order to unzip the backup file.
+
+#### Password
+
+Remember to use long strings and to keep your password safe – **without it, you will never be able to open your backup**.
+
+Leave it blank if you want to keep your backup without a password.
+
+#### Encryption
+
+It's common to encrypt backups before storing them somewhere to prevent unauthorized access.
+
+It's important to try this workflow and also to decrypt a backup archive, so you know that it works and you have a working backup restore solution.
+
+**Warning:** the default MacOS app to (un)archive ZIPs seems unable to open/extract encrypted ZIP files.
+You should use an app like [The Unarchiver](https://theunarchiver.com/) or [BetterZip](https://macitbetter.com/).
+
+### Cleanup
+
+Property | Description
+--------------------- | ---------------------
+**Keep all backups for days** | The number of days for which backups must be kept.
+**Keep daily backups for days** | The number of days for which daily backups must be kept.
+**Keep weekly backups for weeks** | The number of weeks for which one weekly backup must be kept.
+**Keep monthly backups for months** | The number of months for which one monthly backup must be kept.
+**Keep yearly backups for years** | The number of years for which one yearly backup must be kept.
+**Delete oldest backups when using more megabytes than** | After cleaning up the backups remove the oldest backup until this amount of megabytes has been reached.
+
+### Monitoring
+
+A backup is considered unhealthy if the date of the latest backup is too far in the past to be useful or if the amount of storage space required for all backups is not available.
+
+Property | Description
+--------------------- | ---------------------
+**Newest backups should not be older than days** | Send mail notification when newest backup will be older than given days. Default to 1 day.
+**Storage used may not be higher than megabytes** | Send mail notification when storage used for backups will be higher than given megabytes. Default to 5000 megabytes. Setting to 0 means the monitor will consider that the backup can use unlimited storage.
+
+### Dumping the database
+
+The `mysqldump`/`pg_dump` are used to dump the database. If they are not installed in a default location, you can add a key named `dump.dump_binary_path` in October `database.php` config file. Only fill in the path to the binary. Do not include the name of the binary itself.
+
+If your database dump takes a long time, you might exceed the default timeout of 60 seconds. You can set a higher (or lower) limit by providing a `dump.timeout` config key which specifies, in seconds, how long the command may run.
+
+Here's an example for MySQL:
+
+```
+// config/database.php
+'connections' => [
+	'mysql' => [
+		'driver' => 'mysql'
+		...,
+		'dump' => [
+		   'dump_binary_path' => '/path/to/the/binary', // only the path, so without `mysqldump` or `pg_dump`
+		   'use_single_transaction',
+		   'timeout' => 60 * 5, // 5 minute timeout
+		   'exclude_tables' => ['table1', 'table2'],
+		   'add_extra_option' => '--optionname=optionvalue',
+		]
+	],
+```
+
+There is also a setting in backend area to exclude database tables from backup. By default, it will exclude logs tables.
+
+## Filesystems
+
+Plugin supports following storage drivers:
+
+* Local Storage
+* FTP Storage
+* Amazon S3 Cloud Storage
+* Rackspace Cloud Storage
+* Dropbox Cloud Storage
+
+More drivers can be added on feature requests. Just create an issue with **[Feature Request]** in title, and I will see what can be done.
+
+The filesystem configuration file is located at **config/filesystems.php**. Within this file you may configure all of your "disks". Example configurations for each supported driver is included in the configuration file. So, simply modify the configuration to reflect your storage preferences and credentials!
+
+### Amazon S3 and Rackspace configuration
+
+Install [October Drivers](http://octobercms.com/plugin/october-drivers) plugin.
+
+Go to plugin **Settings** and check `s3/rackspace` disk in **Destination** tab.
+
+### Dropbox configuration
+
+Install [Dropbox Adapter](https://octobercms.com/plugin/renatio-dropboxadapter) plugin.
+
+Read this external plugin documentation and configure Dropbox filesystem.
+
+Go to plugin **Settings** and check `dropbox` disk in **Destination** tab.
+
+### FTP configuration
+
+Add new filesystem disk in `disks` array in `config/filesystems.php`:
+
+```
+'ftp' => [
+    'driver'   => 'ftp',
+    'host'     => '',
+    'username' => '',
+    'password' => '',
+    'root'     => '',
+    'ssl'      => true,
+],
+```
+
+Go to plugin **Settings** and check `ftp` disk in **Destination** tab.
+
+## Console commands
+
+Plugin will create three new artisan commands for working with a console.
+
+**backup:run** command will run new backup process. Add **--only-db** option for backup only database.
+
+**backup:clean** command will run clean old backups process.
+
+**backup:list** command will display status of all monitored destination filesystems.
+
+**backup:monitor** command will check status of all monitored destination filesystems.
+
+## Mail notifications
+
+Plugin can send notifications when:
+
+- backup was successful,
+- backup has failed,
+- cleanup was successful,
+- cleanup has failed,
+- healthy backup was found,
+- unhealthy backup was found.
+
+To configure this feature go to plugin **Settings** and **Notifications** tab.
