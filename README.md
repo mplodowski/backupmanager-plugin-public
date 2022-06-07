@@ -1,18 +1,16 @@
 # Backup Manager Plugin
 
-**Demo URL:** https://october-demo.renatio.com/backend/backend/auth/signin  
-**Login:** backup  
-**Password:** backup  
+**Demo URL:** https://october-demo.renatio.com/backend/backend/auth/signin
+
+**Login:** backup
+
+**Password:** backup
 
 Backup your application with ease.
 
-> This plugin is fully compatible with the latest version of October CMS 2.x from version 4.2.0.
+The backup is a zip file that contains all files in the directories you specify along with a dump of your database. The backup can be stored on any of the filesystems you have configured in October. You can backup your application to multiple filesystems at once. In addition to making the backup, the package can also clean up old backups, monitor the health of the backups, and show an overview of all backups. The plugin can also notify you via mail when something goes wrong with your backups.
 
-> The latest version that supports October CMS 1.x is version 4.1.0.
-
-The backup is a zip file that contains all files in the directories you specify along with a dump of your database. The backup can be stored on any of the filesystems you have configured in October. You can backup your application to multiple filesystems at once. In addition to making the backup, the plugin can also clean up old backups and monitor health of all backups.
-
-![October CMS Backup Manager](https://octobercms.com/storage/app/uploads/public/615/041/654/615041654ed37598938006.png)
+![October CMS Backup Manager](https://octobercms.com/storage/app/uploads/public/629/f7b/600/629f7b6002fc3101265527.png)
 
 ## Features
 * A backup database and application files with mouse click
@@ -27,7 +25,9 @@ The backup is a zip file that contains all files in the directories you specify 
 
 ## Requirements
 
-This plugin requires PHP 7.3, with the [ZIP module](http://php.net/manual/en/book.zip.php) and Laravel 6.x. It's not compatible with Windows servers.
+This plugin requires PHP 8.0, with the [ZIP module](http://php.net/manual/en/book.zip.php) and Laravel 9.0 or higher. It's not compatible with Windows servers.
+
+If you are using an older version of Laravel and October, take a look at one of the previous versions of this plugin.
 
 The package needs free disk space where it can create backups. Ensure that you have **at least** as much free space as the total size of the files you want to backup.
 
@@ -95,23 +95,23 @@ This plugin ships with settings page. Go to **Settings**, and you will see a men
 
 ### Source
 
-Property | Description
---------------------- | ---------------------
-**Databases** | The names of the connections to the databases that should be backed up. MySQL, PostgreSQL, SQLite and Mongo databases are supported.
-**Exclude tables** | Those tables will not be included in backup.
-**Gzip database dump** | The database dump can be gzipped to decrease disk space usage.
-**Follow links** | Determines if symlinks should be followed.
-**Ignore unreadable directories** | Determines if it should avoid unreadable folders.
-**Include** | The list of directories and files that will be included in the backup. Leave empty to backup whole October project.
-**Exclude** | These directories and files will be excluded from the backup. Directories used by the backup process will automatically be excluded.
+| Property                          | Description                                                                                                                          |
+|-----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| **Databases**                     | The names of the connections to the databases that should be backed up. MySQL, PostgreSQL, SQLite and Mongo databases are supported. |
+| **Exclude tables**                | Those tables will not be included in backup.                                                                                         |
+| **Compress database dump**        | The database dump can be compressed to decrease disk space usage.                                                                    |
+| **Follow links**                  | Determines if symlinks should be followed.                                                                                           |
+| **Ignore unreadable directories** | Determines if it should avoid unreadable folders.                                                                                    |
+| **Include**                       | The list of directories and files that will be included in the backup. Leave empty to backup whole October project.                  |
+| **Exclude**                       | These directories and files will be excluded from the backup. Directories used by the backup process will automatically be excluded. |
 
 ### Destination
 
-Property | Description
---------------------- | ---------------------
-**Filename prefix** | The filename prefix used for the backup zip file.
-**Name** | The name of this application.
-**Disks** | The disk names on which the backups will be stored.
+| Property            | Description                                         |
+|---------------------|-----------------------------------------------------|
+| **Filename prefix** | The filename prefix used for the backup zip file.   |
+| **Name**            | The name of this application.                       |
+| **Disks**           | The disk names on which the backups will be stored. |
 
 ### Scheduler
 
@@ -140,23 +140,23 @@ You should use an app like [The Unarchiver](https://theunarchiver.com/) or [Bett
 
 ### Cleanup
 
-Property | Description
---------------------- | ---------------------
-**Keep all backups for days** | The number of days for which backups must be kept.
-**Keep daily backups for days** | The number of days for which daily backups must be kept.
-**Keep weekly backups for weeks** | The number of weeks for which one weekly backup must be kept.
-**Keep monthly backups for months** | The number of months for which one monthly backup must be kept.
-**Keep yearly backups for years** | The number of years for which one yearly backup must be kept.
-**Delete oldest backups when using more megabytes than** | After cleaning up the backups remove the oldest backup until this amount of megabytes has been reached.
+| Property                                                 | Description                                                                                             |
+|----------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| **Keep all backups for days**                            | The number of days for which backups must be kept.                                                      |
+| **Keep daily backups for days**                          | The number of days for which daily backups must be kept.                                                |
+| **Keep weekly backups for weeks**                        | The number of weeks for which one weekly backup must be kept.                                           |
+| **Keep monthly backups for months**                      | The number of months for which one monthly backup must be kept.                                         |
+| **Keep yearly backups for years**                        | The number of years for which one yearly backup must be kept.                                           |
+| **Delete oldest backups when using more megabytes than** | After cleaning up the backups remove the oldest backup until this amount of megabytes has been reached. |
 
 ### Monitoring
 
 A backup is considered unhealthy if the date of the latest backup is too far in the past to be useful or if the amount of storage space required for all backups is not available.
 
-Property | Description
---------------------- | ---------------------
-**Newest backups should not be older than days** | Send mail notification when newest backup will be older than given days. Default to 1 day.
-**Storage used may not be higher than megabytes** | Send mail notification when storage used for backups will be higher than given megabytes. Default to 5000 megabytes. Setting to 0 means the monitor will consider that the backup can use unlimited storage.
+| Property                                          | Description                                                                                                                                                                                                  |
+|---------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Newest backups should not be older than days**  | Send mail notification when newest backup will be older than given days. Default to 1 day.                                                                                                                   |
+| **Storage used may not be higher than megabytes** | Send mail notification when storage used for backups will be higher than given megabytes. Default to 5000 megabytes. Setting to 0 means the monitor will consider that the backup can use unlimited storage. |
 
 ### Dumping the database
 
@@ -183,6 +183,10 @@ Here's an example for MySQL:
 ```
 
 There is also a setting in backend area to exclude database tables from backup. By default, it will exclude logs tables.
+
+## Configuring the backup disk
+
+By default, the backup will be saved into the storage/app/October CMS/ directory of your October application. This folder most probably is configured to be public. We recommend that you create a disk named backups (you can use any name you prefer) in filesystems.php and select this disk in plugin Settings.
 
 ## Filesystems
 
