@@ -11,27 +11,31 @@ Backup your application with ease.
 The backup is a zip file that contains all files in the directories you specify along with a dump of your database. The
 backup can be stored on any of the filesystems you have configured in October. You can backup your application to
 multiple filesystems at once. In addition to making the backup, the package can also clean up old backups, monitor the
-health of the backups, and show an overview of all backups. The plugin can also notify you via mail when something goes
-wrong with your backups.
-
-![October CMS Backup Manager](https://octobercms.com/storage/app/uploads/public/629/f7b/600/629f7b6002fc3101265527.png)
+health of the backups, and show an overview of all backups. The plugin can also notify you via mail, Discord or a
+webhook when something goes wrong with your backups, and restore the database from any backup it created.
 
 ## Features
 
 * A backup database and application files with mouse click
+* Restore the database from any backup with a console command
 * S3, FTP, SFTP, Dropbox storage support
-* MySQL, PostgreSQL and Mongo databases support
+* MySQL, PostgreSQL, SQLite and Mongo databases support
 * A configurable scheduler for automatic backups
-* Automatic cleanup old backups
+* Backups triggered over HTTP, for hosting without a system cron
+* Queued backups that survive execution time limits
+* A history of every backup run, with filters, bulk delete and automatic retention
+* Per-action permissions, enforced on the server rather than only hidden in the interface
+* Automatic cleanup of old backups
 * Extensive settings options
 * Encryption and password protection
+* Verification of every created archive
 * Monitoring the health of all backups
-* Mail notifications
+* Mail, Discord and webhook notifications
 
 ## Requirements
 
-This plugin requires PHP 8.0, with the [ZIP module](http://php.net/manual/en/book.zip.php) and Laravel 9.0 or higher.
-It's not compatible with Windows servers.
+This plugin requires PHP 8.3, with the [ZIP module](http://php.net/manual/en/book.zip.php), October CMS 4.0 and Laravel
+12.40 or higher. It's not compatible with Windows servers.
 
 If you are using an older version of Laravel and October, take a look at one of the previous versions of this plugin.
 
@@ -91,11 +95,90 @@ will be included see plugin **Settings**. Default settings will take project **b
 
 **Clean old backups** button will clean up old backups based on the plugin **Settings**.
 
-**Backup log** button will show the latest backup log in popup window.
-
-> **Important note:** Log is not created when you manually run console command.
-
 **Settings** button will redirect you to the plugin settings.
+
+## Permissions
+
+Access is granted per action, so an administrator can be allowed to run a backup without being able to delete one, or
+to read the history without being able to clear it. Assign them under **Settings → Administrators** on the **Backups**
+tab.
+
+| Permission | What it unlocks |
+| --- | --- |
+| **Manage backups** | The backups page itself. Required for everything else on that page. |
+| **Create backups** | The *Application backup* and *Database backup* buttons. |
+| **Clean old backups** | The *Clean old backups* button. |
+| **Delete backups** | The delete icon on each row, the checkboxes and *Delete selected*. |
+| **Download backups** | The download icon, and the download route behind it. |
+| **Copy restore command** | The terminal icon that copies the restore command. |
+| **Manage history** | The History page itself. |
+| **Delete history entries** | The delete icon on each row, the checkboxes, *Delete selected* and *Clear history*. |
+| **Manage settings** | The plugin settings, and the *Settings* button in the toolbar. |
+
+Every action is checked on the server, not only hidden in the interface, so a hand-written request cannot get around a
+missing permission. Administrators marked as super users bypass all of these, as everywhere else in October.
+
+> **Copy restore command** only hides the button. Restoring runs from the console, so anybody with shell access can
+> restore regardless of what this permission says.
+
+## Restoring a backup
+
+Restoring replaces your database with the one stored inside a backup archive. It is available **from the console only**,
+because it is destructive and cannot be undone. In the backups list, the orange terminal button copies the matching
+restore command to your clipboard so you can paste it into a terminal.
+
+```bash
+php artisan backup:restore
+php artisan backup:restore --path="October CMS/2026-01-15-09-20-58.zip" --disk=local
+```
+
+| Option | Description |
+| --- | --- |
+| `--path` | Path to the backup archive on the disk. Required when running non-interactively. |
+| `--disk` | Disk the backup is stored on. Defaults to the disk selected in the backups list. |
+| `--connection` | Database connection to restore into. Defaults to the application default. |
+| `--password` | Password for an encrypted archive. Defaults to the one saved in the settings. |
+| `--skip-safety-backup` | Do not create a safety backup first. Leaves you without a way back. |
+| `--force` | Skip the confirmation prompt. Required for unattended runs. |
+
+> **Only the database is restored.** Project files inside the archive are never touched. If you need them back, unpack
+> the archive manually.
+
+Along with the safety backup path, the command prints two ways to roll back: the `backup:restore` command and a raw
+database client pipeline (`unzip -p ... | mysql ...`) for the case where the application is so broken that artisan
+itself no longer runs. The pipeline never contains the database password; the client asks for it.
+
+> **You will be logged out.** The dump contains `backend_users` and `sessions`, so accounts return to the state they
+> were in when the backup was taken. Any account created afterwards will be gone.
+
+> **Restoring is not transactional.** Schema changes in MySQL cannot be rolled back, so an import that fails halfway
+> leaves the database in an inconsistent state. This is why a safety backup is taken by default - keep the path it
+> prints.
+
+Tables that are not part of the dump, such as tables excluded from the backup, are left untouched by a restore.
+
+When the archive holds dumps of several databases, the one matching `--connection` is used. It is found by its database
+name first, then by the connection name, so back up two databases at once and each can still be restored on its own. If
+no single dump matches, the restore stops and lists what the archive contains instead of guessing.
+
+### PostgreSQL and SQLite
+
+Dumps for these engines are created without drop statements, so they can only be restored into an empty database.
+Prepare one before restoring, for example by recreating the schema.
+
+### Requirements
+
+Restoring uses the native client of your database engine, the same way backups are created with `mysqldump`. Make sure
+`mysql`, `psql` or `sqlite3` is installed and available in `PATH`, and that `proc_open` is enabled.
+
+### If the application no longer boots
+
+A safety backup is always stored unencrypted, so it can be imported without this application:
+
+```bash
+unzip -p "storage/app/October CMS/safety-2026-01-15-09-20-58.zip" "db-dumps/*.sql" > /tmp/recover.sql
+mysql -u USER -p DATABASE < /tmp/recover.sql
+```
 
 ## Maximum execution time error
 
@@ -107,23 +190,65 @@ large and PHP cannot do this process in a single request.
 1. Change **max_execution_time** property value in your PHP configuration.
 2. Use [Scheduler](#scheduler) to perform automatic backups (recommended).
 3. Use [Console commands](#console-commands) to perform backups.
+4. Enable **Queue backups** in the settings, see [Queued backups](#queued-backups).
+
+## Queued backups
+
+Backups started from the backend normally run inside the web request, which means a large backup can hit the PHP
+execution time limit. Enabling **Queue backups** on the Destination tab dispatches the work to the queue instead, so the
+request returns immediately and the backup keeps running in the background.
+
+This requires a running queue worker:
+
+```bash
+php artisan queue:work
+```
+
+With queueing enabled only a flash message is shown after clicking, because the backup runs in the background. Open
+the **History** page once the job completed to see its output.
+
+> Leave this setting off if you do not run a queue worker, otherwise backups started from the backend will never run.
+
+Each queued backup reads the settings when it runs, so a change takes effect on the next backup without restarting the
+worker.
+
+## Backup history
+
+The **History** page under the Backups menu records every backup and cleanup run: when it happened, how long it took,
+how large the archive was and whether it succeeded. Clicking an entry shows the output of that particular run, so a
+failure stays readable long after it happened.
+
+The history is a journal of what the plugin did, not a list of the archives that exist. Backups removed straight from
+the disk, or created on another server, leave no trace in it - the backups list itself always reads the disk, so it
+stays accurate regardless.
+
+Entries can be removed in three ways: the trash icon on a row removes that one entry, checking rows enables
+**Delete selected** in the toolbar, and **Clear history** wipes the page clean. None of them touch the archives
+themselves - removing an entry only forgets that the run happened. Entries also expire on their own, see
+**Keep history entries for days** in the settings.
 
 ## Settings
 
 This plugin ships with settings page. Go to **Settings**, and you will see a menu item **Backup Manager** listed
 under **Backup** section.
 
-### Source
+### Database
+
+| Property                   | Description                                                                                                                          |
+|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| **Databases**              | The names of the connections to the databases that should be backed up. MySQL, PostgreSQL, SQLite and Mongo databases are supported. |
+| **Exclude tables**         | Those tables will not be included in backup.                                                                                         |
+| **Compress database dump** | The database dump can be compressed to decrease disk space usage.                                                                    |
+
+### Files
 
 | Property                          | Description                                                                                                                          |
 |-----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
-| **Databases**                     | The names of the connections to the databases that should be backed up. MySQL, PostgreSQL, SQLite and Mongo databases are supported. |
-| **Exclude tables**                | Those tables will not be included in backup.                                                                                         |
-| **Compress database dump**        | The database dump can be compressed to decrease disk space usage.                                                                    |
-| **Follow links**                  | Determines if symlinks should be followed.                                                                                           |
-| **Ignore unreadable directories** | Determines if it should avoid unreadable folders.                                                                                    |
 | **Include**                       | The list of directories and files that will be included in the backup. Leave empty to backup whole October project.                  |
 | **Exclude**                       | These directories and files will be excluded from the backup. Directories used by the backup process will automatically be excluded. |
+| **Follow links**                  | Determines if symlinks should be followed.                                                                                           |
+| **Ignore unreadable directories** | Determines if it should avoid unreadable folders.                                                                                    |
+| **Verify backup**                 | Checks that the created archive can be opened, is not empty and contains the expected number of files. Adds extra time to each backup. |
 
 ### Destination
 
@@ -132,6 +257,7 @@ under **Backup** section.
 | **Filename prefix** | The filename prefix used for the backup zip file.   |
 | **Name**            | The name of this application.                       |
 | **Disks**           | The disk names on which the backups will be stored. |
+| **Queue backups**   | Runs backups through the queue instead of the web request. |
 
 ### Scheduler
 
@@ -139,7 +265,39 @@ Configure how often plugin will run automatic tasks for database backup, applica
 monitor the health of all backups actions.
 
 > **Important note:** For scheduled tasks to operate correctly you must set up the
-> scheduler: https://octobercms.com/docs/setup/installation#crontab-setup
+> scheduler: https://docs.octobercms.com/4.x/setup/scheduler.html
+
+#### Allow external trigger
+
+Shared hosting often has neither a system cron nor console access, which leaves the scheduler above with nothing to run
+it. Switching **Allow external trigger** on publishes three addresses, one per task, that run it over HTTP instead:
+
+```
+https://example.com/backupmanager/trigger/<token>/db
+https://example.com/backupmanager/trigger/<token>/app
+https://example.com/backupmanager/trigger/<token>/clean
+```
+
+Point an external cron service at whichever one you need - cron-job.org, EasyCron, or any uptime monitor that fetches a
+URL on a schedule. A `200` means the task ran, a `500` means it failed, so a monitoring service will tell you when
+backups stop working.
+
+> **The address is the password.** Anybody who knows it can run the task. Keep it out of tickets, commit messages,
+> screenshots and anything else that gets shared. Switch the trigger off and the address stops working immediately,
+> even though the token stays the same. If an address did leak, the **Generate new addresses** button below the list
+> replaces the token, and every old address stops working at once.
+
+Use the addresses over HTTPS only: the token travels in the URL, so on plain HTTP it would cross the network in
+cleartext, and URLs also end up in web server, proxy and cron service logs. Treat those logs as sensitive.
+
+The endpoint answers `404` to everything it refuses - a wrong token, an unknown task, or the trigger being switched off
+all look identical from outside, so probing for it tells an attacker nothing. It accepts five requests per minute per
+IP address and ten per minute across all addresses combined; anything beyond that gets `429`, which keeps whoever
+finds the address from filling the disk with parallel backups.
+
+With **Queue backups** enabled the request returns as soon as the task is queued rather than waiting for the backup to
+finish, which keeps a large backup from hitting the timeout of whichever service is calling it. Either way the run is
+recorded on the History page like any other.
 
 ### Security
 
@@ -173,6 +331,7 @@ You should use an app like [The Unarchiver](https://theunarchiver.com/) or [Bett
 | **Keep monthly backups for months**                      | The number of months for which one monthly backup must be kept.                                         |
 | **Keep yearly backups for years**                        | The number of years for which one yearly backup must be kept.                                           |
 | **Delete oldest backups when using more megabytes than** | After cleaning up the backups remove the oldest backup until this amount of megabytes has been reached. |
+| **Keep history entries for days**                        | History entries older than this number of days are removed daily by the scheduler. Set to 0 to keep the history forever. |
 
 ### Monitoring
 
@@ -181,8 +340,8 @@ of storage space required for all backups is not available.
 
 | Property                                          | Description                                                                                                                                                                                                  |
 |---------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Newest backups should not be older than days**  | Send mail notification when newest backup will be older than given days. Default to 1 day.                                                                                                                   |
-| **Storage used may not be higher than megabytes** | Send mail notification when storage used for backups will be higher than given megabytes. Default to 5000 megabytes. Setting to 0 means the monitor will consider that the backup can use unlimited storage. |
+| **Newest backups should not be older than days**  | Send a notification when newest backup will be older than given days. Default to 1 day.                                                                                                                      |
+| **Storage used may not be higher than megabytes** | Send a notification when storage used for backups will be higher than given megabytes. Default to 5000 megabytes. Setting to 0 means the monitor will consider that the backup can use unlimited storage.    |
 
 ### Dumping the database
 
@@ -322,7 +481,7 @@ After filesystem configuration go to plugin **Settings** and check `dropbox` dis
 
 ## Console commands
 
-Plugin will create three new artisan commands for working with a console.
+Plugin will create five new artisan commands for working with a console.
 
 **backup:run** command will run new backup process. Add **--only-db** option for backup only database.
 
@@ -332,9 +491,23 @@ Plugin will create three new artisan commands for working with a console.
 
 **backup:monitor** command will check status of all monitored destination filesystems.
 
-## Mail notifications
+**backup:restore** command will restore the database from a backup archive. See [Restoring a backup](#restoring-a-backup).
 
-Plugin can send notifications when:
+## Notification channels
+
+Notifications can be delivered by e-mail, to Discord, or to any service that accepts a webhook. Each channel is used
+only once it has an address configured, so leaving a field empty simply disables that channel. When several are
+configured, every enabled notification is sent through all of them.
+
+| Setting | Description |
+| --- | --- |
+| **Notification email** | E-mail address that will receive notifications. Separate multiple addresses with a comma. Every address is validated when you save, because a malformed one would stop backups from running. |
+| **Discord webhook URL** | Create it in your Discord server under Integrations. |
+| **Webhook URL** | Notifications are posted as JSON. Works with Slack, Mattermost, Microsoft Teams and custom integrations. |
+
+> Slack accepts incoming webhooks, so use the **Webhook URL** field to post backup notifications to a Slack channel.
+
+A notification is sent when:
 
 - backup was successful,
 - backup has failed,
