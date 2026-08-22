@@ -1,12 +1,11 @@
 # Backup Manager Plugin
 
-**Demo URL:** https://october-demo.renatio.com/backend/backend/auth/signin
+Automate database and file backups for [October CMS](https://octobercms.com) to off-site storage — encrypted and
+restorable.
 
-**Login:** backup
-
+**Demo URL:** https://october-demo.renatio.com/backend/backend/auth/signin  
+**Login:** backup  
 **Password:** backup
-
-Backup your application with ease.
 
 The backup is a zip file that contains all files in the directories you specify along with a dump of your database. The
 backup can be stored on any of the filesystems you have configured in October. You can backup your application to
@@ -47,6 +46,11 @@ Make sure `mysqldump` is installed on your system if you want to backup MySQL da
 Make sure `pg_dump` is installed on your system if you want to backup PostgreSQL databases.
 
 Make sure `mongodump` is installed on your system if you want to backup Mongo databases.
+
+Backup runs are serialized under a cache lock, and queued runs are deduplicated the same way. That protection only
+works when the default cache store (`CACHE_STORE`) holds locks across processes: `file`, `database` and `redis` all do,
+the `array` store does not. With the `array` store backups still run, they just are not kept from overlapping, and the
+backups page shows a warning about it.
 
 ## Why is this a paid plugin?
 
@@ -137,12 +141,15 @@ php artisan backup:restore --path="October CMS/2026-01-15-09-20-58.zip" --disk=l
 | `--path` | Path to the backup archive on the disk. Required when running non-interactively. |
 | `--disk` | Disk the backup is stored on. Defaults to the disk selected in the backups list. |
 | `--connection` | Database connection to restore into. Defaults to the application default. |
-| `--password` | Password for an encrypted archive. Defaults to the one saved in the settings. |
+| `--password` | Password for an encrypted archive. Falls back to the `BACKUP_RESTORE_PASSWORD` environment variable, then to the password saved in the settings; when none fits an encrypted archive, an interactive run asks for it. Also encrypts the safety backup. |
 | `--skip-safety-backup` | Do not create a safety backup first. Leaves you without a way back. |
 | `--force` | Skip the confirmation prompt. Required for unattended runs. |
 
 > **Only the database is restored.** Project files inside the archive are never touched. If you need them back, unpack
 > the archive manually.
+
+Anything passed as `--password` shows up in `ps` and in the shell history, so on a shared server prefer the
+`BACKUP_RESTORE_PASSWORD` environment variable or simply let the command ask - the prompt hides what you type.
 
 Along with the safety backup path, the command prints two ways to roll back: the `backup:restore` command and a raw
 database client pipeline (`unzip -p ... | mysql ...`) for the case where the application is so broken that artisan
@@ -154,6 +161,13 @@ itself no longer runs. The pipeline never contains the database password; the cl
 > **Restoring is not transactional.** Schema changes in MySQL cannot be rolled back, so an import that fails halfway
 > leaves the database in an inconsistent state. This is why a safety backup is taken by default - keep the path it
 > prints.
+
+The safety backup runs under the same lock as every other backup, so it waits for no one: if a scheduled or queued
+backup is running at that moment, the restore stops before touching the database and asks you to try again later.
+
+The safety backup is encrypted only with the password passed through `--password`. The password saved in the settings
+is deliberately not used, because it lives in the database the restore replaces. Without `--password` the safety backup
+is stored in plain form and the command says so - delete it once you have verified the restore.
 
 Tables that are not part of the dump, such as tables excluded from the backup, are left untouched by a restore.
 
@@ -173,7 +187,7 @@ Restoring uses the native client of your database engine, the same way backups a
 
 ### If the application no longer boots
 
-A safety backup is always stored unencrypted, so it can be imported without this application:
+A safety backup taken without `--password` is stored unencrypted, so it can be imported without this application:
 
 ```bash
 unzip -p "storage/app/October CMS/safety-2026-01-15-09-20-58.zip" "db-dumps/*.sql" > /tmp/recover.sql
@@ -288,7 +302,11 @@ backups stop working.
 > replaces the token, and every old address stops working at once.
 
 Use the addresses over HTTPS only: the token travels in the URL, so on plain HTTP it would cross the network in
-cleartext, and URLs also end up in web server, proxy and cron service logs. Treat those logs as sensitive.
+cleartext, and URLs also end up in web server, proxy and cron service logs. Treat those logs as sensitive. When the
+calling service can send custom headers, keep the token out of the URL altogether: call
+`https://example.com/backupmanager/trigger/db` (or `app`, `clean`) with an `X-Backup-Token` header carrying the token.
+Generate new addresses whenever the site moves to another server or hosting account, so a token left behind in old
+logs stops working.
 
 The endpoint answers `404` to everything it refuses - a wrong token, an unknown task, or the trigger being switched off
 all look identical from outside, so probing for it tells an attacker nothing. It accepts five requests per minute per
@@ -296,8 +314,10 @@ IP address and ten per minute across all addresses combined; anything beyond tha
 finds the address from filling the disk with parallel backups.
 
 With **Queue backups** enabled the request returns as soon as the task is queued rather than waiting for the backup to
-finish, which keeps a large backup from hitting the timeout of whichever service is calling it. Either way the run is
-recorded on the History page like any other.
+finish, which keeps a large backup from hitting the timeout of whichever service is calling it. Only one job per task
+waits in the queue at a time - repeated requests while it is pending or running are answered with `200` but queue
+nothing more, so a leaked address cannot fill the disk with a backlog of backups. Either way the run is recorded on the
+History page like any other.
 
 ### Security
 
@@ -310,6 +330,15 @@ Remember to use long strings and to keep your password safe – **without it, yo
 .
 
 Leave it blank if you want to keep your backup without a password.
+
+#### Secrets in the file backup
+
+With the default settings the file backup contains the whole project, including `.env` - `APP_KEY`, database
+credentials and the keys of every storage disk. Without an archive password that file lands in plain form wherever
+the backups are stored (S3, FTP, Dropbox, ...), and anyone who can read the backup can read the secrets.
+
+Either set an archive password, or add `.env` to the **Exclude** list in the **Files** tab if your hosting recreates
+the environment file on its own. The backups page shows a warning as long as `.env` is backed up without a password.
 
 #### Encryption
 
