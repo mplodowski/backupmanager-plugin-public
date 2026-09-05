@@ -7,11 +7,9 @@ restorable.
 **Login:** backup  
 **Password:** backup
 
-The backup is a zip file that contains all files in the directories you specify along with a dump of your database. The
-backup can be stored on any of the filesystems you have configured in October. You can backup your application to
-multiple filesystems at once. In addition to making the backup, the package can also clean up old backups, monitor the
-health of the backups, and show an overview of all backups. The plugin can also notify you via mail, Discord or a
-webhook when something goes wrong with your backups, and restore the database from any backup it created.
+The backup is a zip file with the directories you specify and a dump of your database, stored on any of the
+filesystems configured in October. The plugin cleans up old backups, monitors their health, notifies you when
+something goes wrong and restores the database from any backup it created.
 
 ## Features
 
@@ -23,7 +21,7 @@ webhook when something goes wrong with your backups, and restore the database fr
 * Backups triggered over HTTP, for hosting without a system cron
 * Queued backups that survive execution time limits
 * A history of every backup run, with filters, bulk delete and automatic retention
-* Per-action permissions, enforced on the server rather than only hidden in the interface
+* Per-action permissions
 * Automatic cleanup of old backups
 * Extensive settings options
 * Encryption and password protection
@@ -41,16 +39,10 @@ If you are using an older version of Laravel and October, take a look at one of 
 The package needs free disk space where it can create backups. Ensure that you have **at least** as much free space as
 the total size of the files you want to backup.
 
-Make sure `mysqldump` is installed on your system if you want to backup MySQL databases.
+`mysqldump`, `pg_dump` or `mongodump` must be installed for the database engine you back up.
 
-Make sure `pg_dump` is installed on your system if you want to backup PostgreSQL databases.
-
-Make sure `mongodump` is installed on your system if you want to backup Mongo databases.
-
-Backup runs are serialized under a cache lock, and queued runs are deduplicated the same way. That protection only
-works when the default cache store (`CACHE_STORE`) holds locks across processes: `file`, `database` and `redis` all do,
-the `array` store does not. With the `array` store backups still run, they just are not kept from overlapping, and the
-backups page shows a warning about it.
+Backup runs are serialized under a cache lock, which needs a cache store shared across processes: `file`, `database`
+or `redis`. With the `array` store backups still run, but may overlap.
 
 ## Why is this a paid plugin?
 
@@ -90,22 +82,17 @@ from [www.flaticon.com](https://www.flaticon.com/).
 
 ## Usage
 
-After installation plugin will register backend **Backups** menu position.
+The plugin registers a **Backups** menu in the backend.
 
-**Application backup** button will create backup with all project files and database dump file. To change which files
-will be included see plugin **Settings**. Default settings will take project **base path** and exclude **vendor** and **node_modules** directories from it.
-
-**Database backup** button will create only database backup.
-
-**Clean old backups** button will clean up old backups based on the plugin **Settings**.
-
-**Settings** button will redirect you to the plugin settings.
+* **Application backup** creates a backup of all project files and the database. By default the project **base path**
+  is backed up without **vendor** and **node_modules**; change that in the plugin **Settings**.
+* **Database backup** creates a database-only backup.
+* **Clean old backups** removes old backups according to the Cleanup settings.
 
 ## Permissions
 
-Access is granted per action, so an administrator can be allowed to run a backup without being able to delete one, or
-to read the history without being able to clear it. Assign them under **Settings → Administrators** on the **Backups**
-tab.
+Access is granted per action under **Settings → Administrators**, on the **Backups** tab. Super users bypass all of
+them.
 
 | Permission | What it unlocks |
 | --- | --- |
@@ -119,17 +106,14 @@ tab.
 | **Delete history entries** | The delete icon on each row, the checkboxes, *Delete selected* and *Clear history*. |
 | **Manage settings** | The plugin settings, and the *Settings* button in the toolbar. |
 
-Every action is checked on the server, not only hidden in the interface, so a hand-written request cannot get around a
-missing permission. Administrators marked as super users bypass all of these, as everywhere else in October.
-
 > **Copy restore command** only hides the button. Restoring runs from the console, so anybody with shell access can
-> restore regardless of what this permission says.
+> restore regardless of this permission.
 
 ## Restoring a backup
 
-Restoring replaces your database with the one stored inside a backup archive. It is available **from the console only**,
-because it is destructive and cannot be undone. In the backups list, the orange terminal button copies the matching
-restore command to your clipboard so you can paste it into a terminal.
+Restoring replaces your database with the one stored inside a backup archive. It is available **from the console
+only**, because it cannot be undone. The terminal button in the backups list copies the matching command to your
+clipboard.
 
 ```bash
 php artisan backup:restore
@@ -141,53 +125,35 @@ php artisan backup:restore --path="October CMS/2026-01-15-09-20-58.zip" --disk=l
 | `--path` | Path to the backup archive on the disk. Required when running non-interactively. |
 | `--disk` | Disk the backup is stored on. Defaults to the disk selected in the backups list. |
 | `--connection` | Database connection to restore into. Defaults to the application default. |
-| `--password` | Password for an encrypted archive. Falls back to the `BACKUP_RESTORE_PASSWORD` environment variable, then to the password saved in the settings; when none fits an encrypted archive, an interactive run asks for it. Also encrypts the safety backup. |
+| `--password` | Password for an encrypted archive. Falls back to `BACKUP_RESTORE_PASSWORD`, then to the password saved in the settings; an interactive run asks when none fits. Also encrypts the safety backup. |
 | `--skip-safety-backup` | Do not create a safety backup first. Leaves you without a way back. |
 | `--force` | Skip the confirmation prompt. Required for unattended runs. |
 
-> **Only the database is restored.** Project files inside the archive are never touched. If you need them back, unpack
-> the archive manually.
-
-Anything passed as `--password` shows up in `ps` and in the shell history, so on a shared server prefer the
-`BACKUP_RESTORE_PASSWORD` environment variable or simply let the command ask - the prompt hides what you type.
-
-Along with the safety backup path, the command prints two ways to roll back: the `backup:restore` command and a raw
-database client pipeline (`unzip -p ... | mysql ...`) for the case where the application is so broken that artisan
-itself no longer runs. The pipeline never contains the database password; the client asks for it.
+> **Only the database is restored.** Project files inside the archive are never touched.
 
 > **You will be logged out.** The dump contains `backend_users` and `sessions`, so accounts return to the state they
-> were in when the backup was taken. Any account created afterwards will be gone.
+> were in when the backup was taken.
 
-> **Restoring is not transactional.** Schema changes in MySQL cannot be rolled back, so an import that fails halfway
-> leaves the database in an inconsistent state. This is why a safety backup is taken by default - keep the path it
-> prints.
+> **Restoring is not transactional.** An import that fails halfway leaves the database inconsistent, which is why a
+> safety backup is taken first - keep the path it prints.
 
-The safety backup runs under the same lock as every other backup, so it waits for no one: if a scheduled or queued
-backup is running at that moment, the restore stops before touching the database and asks you to try again later.
+A few things to know:
 
-The safety backup is encrypted only with the password passed through `--password`. The password saved in the settings
-is deliberately not used, because it lives in the database the restore replaces. Without `--password` the safety backup
-is stored in plain form and the command says so - delete it once you have verified the restore.
-
-Tables that are not part of the dump, such as tables excluded from the backup, are left untouched by a restore.
-
-When the archive holds dumps of several databases, the one matching `--connection` is used. It is found by its database
-name first, then by the connection name, so back up two databases at once and each can still be restored on its own. If
-no single dump matches, the restore stops and lists what the archive contains instead of guessing.
-
-### PostgreSQL and SQLite
-
-Dumps for these engines are created without drop statements, so they can only be restored into an empty database.
-Prepare one before restoring, for example by recreating the schema.
-
-### Requirements
-
-Restoring uses the native client of your database engine, the same way backups are created with `mysqldump`. Make sure
-`mysql`, `psql` or `sqlite3` is installed and available in `PATH`, and that `proc_open` is enabled.
+* Anything passed as `--password` shows up in `ps` and the shell history; on a shared server use
+  `BACKUP_RESTORE_PASSWORD` or let the command ask.
+* The safety backup is encrypted only with `--password`, never with the password from the settings, because that one
+  lives in the database being replaced. Without `--password` it is stored in plain form - delete it once you have
+  verified the restore.
+* The restore waits for no other backup: if one is running, it stops before touching the database.
+* Tables not present in the dump are left untouched.
+* When the archive holds several dumps, the one matching `--connection` is used, by database name first and connection
+  name second. If none matches, the restore stops and lists what the archive contains.
+* PostgreSQL and SQLite dumps contain no drop statements, so they can only be restored into an empty database.
+* The native client - `mysql`, `psql` or `sqlite3` - must be in `PATH`, and `proc_open` enabled.
 
 ### If the application no longer boots
 
-A safety backup taken without `--password` is stored unencrypted, so it can be imported without this application:
+A safety backup taken without `--password` can be imported without this application:
 
 ```bash
 unzip -p "storage/app/October CMS/safety-2026-01-15-09-20-58.zip" "db-dumps/*.sql" > /tmp/recover.sql
@@ -196,55 +162,39 @@ mysql -u USER -p DATABASE < /tmp/recover.sql
 
 ## Maximum execution time error
 
-When you experience **Maximum execution time of ... seconds exceeded** error than most likely application backup is too
-large and PHP cannot do this process in a single request.
+A **Maximum execution time of ... seconds exceeded** error means the backup is too large to finish in a single web
+request. You can:
 
-> What can I do?
-
-1. Change **max_execution_time** property value in your PHP configuration.
-2. Use [Scheduler](#scheduler) to perform automatic backups (recommended).
-3. Use [Console commands](#console-commands) to perform backups.
-4. Enable **Queue backups** in the settings, see [Queued backups](#queued-backups).
+1. Raise **max_execution_time** in your PHP configuration.
+2. Use the [Scheduler](#scheduler) (recommended).
+3. Use [Console commands](#console-commands).
+4. Enable [Queued backups](#queued-backups).
 
 ## Queued backups
 
-Backups started from the backend normally run inside the web request, which means a large backup can hit the PHP
-execution time limit. Enabling **Queue backups** on the Destination tab dispatches the work to the queue instead, so the
-request returns immediately and the backup keeps running in the background.
-
-This requires a running queue worker:
+Enabling **Queue backups** on the Destination tab runs backend backups through the queue, so the request returns
+immediately and the backup continues in the background. This requires a running queue worker:
 
 ```bash
 php artisan queue:work
 ```
 
-With queueing enabled only a flash message is shown after clicking, because the backup runs in the background. Open
-the **History** page once the job completed to see its output.
+Only a flash message is shown after clicking; open the **History** page to see the output once the job completed.
 
 > Leave this setting off if you do not run a queue worker, otherwise backups started from the backend will never run.
 
-Each queued backup reads the settings when it runs, so a change takes effect on the next backup without restarting the
-worker.
-
 ## Backup history
 
-The **History** page under the Backups menu records every backup and cleanup run: when it happened, how long it took,
-how large the archive was and whether it succeeded. Clicking an entry shows the output of that particular run, so a
-failure stays readable long after it happened.
+The **History** page records every backup and cleanup run: when it happened, how long it took, how large the archive
+was and whether it succeeded. Clicking an entry shows the output of that run.
 
-The history is a journal of what the plugin did, not a list of the archives that exist. Backups removed straight from
-the disk, or created on another server, leave no trace in it - the backups list itself always reads the disk, so it
-stays accurate regardless.
-
-Entries can be removed in three ways: the trash icon on a row removes that one entry, checking rows enables
-**Delete selected** in the toolbar, and **Clear history** wipes the page clean. None of them touch the archives
-themselves - removing an entry only forgets that the run happened. Entries also expire on their own, see
-**Keep history entries for days** in the settings.
+The history is a journal of what the plugin did, not a list of the archives that exist - the backups list always reads
+the disk. Removing an entry, selected entries or the whole history never touches the archives. Entries expire according
+to **Keep history entries for days** in the settings.
 
 ## Settings
 
-This plugin ships with settings page. Go to **Settings**, and you will see a menu item **Backup Manager** listed
-under **Backup** section.
+Go to **Settings** and open **Backup Manager** under the **Backup** section.
 
 ### Database
 
@@ -275,16 +225,14 @@ under **Backup** section.
 
 ### Scheduler
 
-Configure how often plugin will run automatic tasks for database backup, application backup, clean old backups and
-monitor the health of all backups actions.
+Configure how often the plugin runs the database backup, application backup, cleanup and health monitor.
 
 > **Important note:** For scheduled tasks to operate correctly you must set up the
 > scheduler: https://docs.octobercms.com/4.x/setup/scheduler.html
 
 #### Allow external trigger
 
-Shared hosting often has neither a system cron nor console access, which leaves the scheduler above with nothing to run
-it. Switching **Allow external trigger** on publishes three addresses, one per task, that run it over HTTP instead:
+For hosting without a system cron, **Allow external trigger** publishes three addresses that run the tasks over HTTP:
 
 ```
 https://example.com/backupmanager/trigger/<token>/db
@@ -292,63 +240,42 @@ https://example.com/backupmanager/trigger/<token>/app
 https://example.com/backupmanager/trigger/<token>/clean
 ```
 
-Point an external cron service at whichever one you need - cron-job.org, EasyCron, or any uptime monitor that fetches a
-URL on a schedule. A `200` means the task ran, a `500` means it failed, so a monitoring service will tell you when
-backups stop working.
+Point an external cron service (cron-job.org, EasyCron, an uptime monitor) at the one you need. A `200` means the
+task ran, a `500` means it failed.
 
-> **The address is the password.** Anybody who knows it can run the task. Keep it out of tickets, commit messages,
-> screenshots and anything else that gets shared. Switch the trigger off and the address stops working immediately,
-> even though the token stays the same. If an address did leak, the **Generate new addresses** button below the list
-> replaces the token, and every old address stops working at once.
+> **The address is the password.** Anybody who knows it can run the task, so keep it out of tickets, screenshots and
+> anything else that gets shared. If it leaked, **Generate new addresses** replaces the token and every old address
+> stops working at once. Switching the trigger off disables the addresses immediately.
 
-Use the addresses over HTTPS only: the token travels in the URL, so on plain HTTP it would cross the network in
-cleartext, and URLs also end up in web server, proxy and cron service logs. Treat those logs as sensitive. When the
-calling service can send custom headers, keep the token out of the URL altogether: call
-`https://example.com/backupmanager/trigger/db` (or `app`, `clean`) with an `X-Backup-Token` header carrying the token.
-Generate new addresses whenever the site moves to another server or hosting account, so a token left behind in old
-logs stops working.
+Use HTTPS only - the token travels in the URL and ends up in server, proxy and cron service logs. When the calling
+service can send headers, call `https://example.com/backupmanager/trigger/db` (or `app`, `clean`) with an
+`X-Backup-Token` header instead.
 
-The endpoint answers `404` to everything it refuses - a wrong token, an unknown task, or the trigger being switched off
-all look identical from outside, so probing for it tells an attacker nothing. It accepts five requests per minute per
-IP address and ten per minute across all addresses combined; anything beyond that gets `429`, which keeps whoever
-finds the address from filling the disk with parallel backups.
-
-With **Queue backups** enabled the request returns as soon as the task is queued rather than waiting for the backup to
-finish, which keeps a large backup from hitting the timeout of whichever service is calling it. Only one job per task
-waits in the queue at a time - repeated requests while it is pending or running are answered with `200` but queue
-nothing more, so a leaked address cannot fill the disk with a backlog of backups. Either way the run is recorded on the
-History page like any other.
+The endpoint answers `404` to a wrong token, an unknown task and a disabled trigger alike, and limits requests to five
+per minute per IP address and ten per minute across all addresses combined. With **Queue backups** enabled it returns
+as soon as the task is queued, and only one job per task waits in the queue at a time.
 
 ### Security
 
-Here you can specify password protection for backups. You will be asked to enter this password in order to unzip the
-backup file.
-
 #### Password
 
-Remember to use long strings and to keep your password safe – **without it, you will never be able to open your backup**
-.
-
-Leave it blank if you want to keep your backup without a password.
+Password-protects the archive. Use a long string and keep it safe - **without it, you will never be able to open your
+backup**. Leave it blank for an unprotected archive.
 
 #### Secrets in the file backup
 
-With the default settings the file backup contains the whole project, including `.env` - `APP_KEY`, database
-credentials and the keys of every storage disk. Without an archive password that file lands in plain form wherever
-the backups are stored (S3, FTP, Dropbox, ...), and anyone who can read the backup can read the secrets.
+With the default settings the file backup contains the whole project, including `.env` with `APP_KEY`, database
+credentials and storage keys. Without an archive password anyone who can read the backup can read the secrets.
 
-Either set an archive password, or add `.env` to the **Exclude** list in the **Files** tab if your hosting recreates
-the environment file on its own. The backups page shows a warning as long as `.env` is backed up without a password.
+Either set an archive password, or add `.env` to the **Exclude** list if your hosting recreates it. The backups page
+warns as long as `.env` is backed up without a password.
 
 #### Encryption
 
-It's common to encrypt backups before storing them somewhere to prevent unauthorized access.
+Test decrypting an archive once, so you know the restore path works before you need it.
 
-It's important to try this workflow and also to decrypt a backup archive, so you know that it works and you have a
-working backup restore solution.
-
-**Warning:** the default MacOS app to (un)archive ZIPs seems unable to open/extract encrypted ZIP files.
-You should use an app like [The Unarchiver](https://theunarchiver.com/) or [BetterZip](https://macitbetter.com/).
+**Warning:** the default macOS archive utility cannot open encrypted ZIP files. Use
+[The Unarchiver](https://theunarchiver.com/) or [BetterZip](https://macitbetter.com/).
 
 ### Cleanup
 
@@ -364,8 +291,7 @@ You should use an app like [The Unarchiver](https://theunarchiver.com/) or [Bett
 
 ### Monitoring
 
-A backup is considered unhealthy if the date of the latest backup is too far in the past to be useful or if the amount
-of storage space required for all backups is not available.
+A backup is considered unhealthy when the latest backup is too old or the backups use more storage than allowed.
 
 | Property                                          | Description                                                                                                                                                                                                  |
 |---------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -374,17 +300,10 @@ of storage space required for all backups is not available.
 
 ### Dumping the database
 
-The `mysqldump`/`pg_dump` are used to dump the database. If they are not installed in a default location, you can add a
-key named `dump.dump_binary_path` in October `database.php` config file. Only fill in the path to the binary. Do not
-include the name of the binary itself.
-
-If your database dump takes a long time, you might exceed the default timeout of 60 seconds. You can set a higher (or
-lower) limit by providing a `dump.timeout` config key which specifies, in seconds, how long the command may run.
-
-Here's an example for MySQL:
+If `mysqldump` / `pg_dump` is not in a default location, or the dump exceeds the default 60 second timeout, configure
+the connection in `config/database.php`:
 
 ```
-// config/database.php
 'connections' => [
 	'mysql' => [
 		'driver' => 'mysql'
@@ -399,52 +318,29 @@ Here's an example for MySQL:
 	],
 ```
 
-There is also a setting in backend area to exclude database tables from backup. By default, it will exclude logs tables.
-
 ## Configuring the backup disk
 
-By default, the backup will be saved into the storage/app/October CMS/ directory of your October application. This
-folder most probably is configured to be public. We recommend that you create a disk named backups (you can use any name
-you prefer) in filesystems.php and select this disk in plugin Settings.
+By default backups are saved to `storage/app/October CMS/`. Create a dedicated disk (for example `backups`) in
+`config/filesystems.php` and select it in the plugin **Settings**.
 
 ## Filesystems
 
-Plugin supports following storage drivers:
+Supported storage drivers: local, S3, FTP, SFTP and Dropbox. Configure the disk in `config/filesystems.php`, then
+select it on the **Destination** tab of the plugin **Settings**.
 
-* Local Storage
-* S3 Cloud Storage
-* FTP Storage
-* SFTP Storage
-* Dropbox Cloud Storage
-
-More drivers can be added on feature requests. Just create an issue with **[Feature Request]** in title, and I will see
-what can be done.
-
-The filesystem configuration file is located at **config/filesystems.php**. Within this file you may configure all of
-your "disks". Example configurations for each supported driver is included in the configuration file. So, simply modify
-the configuration to reflect your storage preferences and credentials!
-
-### S3 Driver Configuration
-
-Before using the S3 driver, you will need to install the Flysystem S3 package via the Composer package manager:
+### S3
 
 ```
 composer require league/flysystem-aws-s3-v3 "^3.0"
 ```
 
-The S3 driver configuration information is located in your `config/filesystems.php` configuration file.
+A sample `s3` disk is included in `config/filesystems.php`.
 
-After filesystem configuration go to plugin **Settings** and check `s3` disk in **Destination** tab.
-
-### FTP Driver Configuration
-
-Before using the FTP driver, you will need to install the Flysystem FTP package via the Composer package manager:
+### FTP
 
 ```
 composer require league/flysystem-ftp "^3.0"
 ```
-
-Laravel's Flysystem integrations work great with FTP; however, a sample configuration is not included with the framework's default `filesystems.php` configuration file. If you need to configure an FTP filesystem, you may use the configuration example below:
 
 ```
 'ftp' => [
@@ -462,17 +358,11 @@ Laravel's Flysystem integrations work great with FTP; however, a sample configur
 ],
 ```
 
-After filesystem configuration go to plugin **Settings** and check `ftp` disk in **Destination** tab.
-
-### SFTP Driver Configuration
-
-Before using the SFTP driver, you will need to install the Flysystem SFTP package via the Composer package manager:
+### SFTP
 
 ```
 composer require league/flysystem-sftp-v3 "^3.0"
 ```
-
-Laravel's Flysystem integrations work great with SFTP; however, a sample configuration is not included with the framework's default `filesystems.php` configuration file. If you need to configure an SFTP filesystem, you may use the configuration example below:
 
 ```
 'sftp' => [
@@ -498,51 +388,29 @@ Laravel's Flysystem integrations work great with SFTP; however, a sample configu
 ],
 ```
 
-After filesystem configuration go to plugin **Settings** and check `sftp` disk in **Destination** tab.
+### Dropbox
 
-### Dropbox configuration
-
-Install [Dropbox Adapter](https://octobercms.com/plugin/renatio-dropboxadapter) plugin.
-
-Read this external plugin documentation and configure Dropbox filesystem.
-
-After filesystem configuration go to plugin **Settings** and check `dropbox` disk in **Destination** tab.
+Install the [Dropbox Adapter](https://octobercms.com/plugin/renatio-dropboxadapter) plugin and configure the disk as
+described in its documentation.
 
 ## Console commands
 
-Plugin will create five new artisan commands for working with a console.
-
-**backup:run** command will run new backup process. Add **--only-db** option for backup only database.
-
-**backup:clean** command will run clean old backups process.
-
-**backup:list** command will display status of all monitored destination filesystems.
-
-**backup:monitor** command will check status of all monitored destination filesystems.
-
-**backup:restore** command will restore the database from a backup archive. See [Restoring a backup](#restoring-a-backup).
+* `backup:run` - run a backup; `--only-db` backs up only the database
+* `backup:clean` - clean old backups
+* `backup:list` - display the status of all monitored destination filesystems
+* `backup:monitor` - check the health of all monitored destination filesystems
+* `backup:restore` - restore the database from a backup archive, see [Restoring a backup](#restoring-a-backup)
 
 ## Notification channels
 
-Notifications can be delivered by e-mail, to Discord, or to any service that accepts a webhook. Each channel is used
-only once it has an address configured, so leaving a field empty simply disables that channel. When several are
-configured, every enabled notification is sent through all of them.
+Notifications go out by e-mail, to Discord and to any service accepting a webhook. A channel is used once it has an
+address; leave a field empty to disable it. Configure them on the **Notifications** tab of the plugin **Settings**.
 
 | Setting | Description |
 | --- | --- |
-| **Notification email** | E-mail address that will receive notifications. Separate multiple addresses with a comma. Every address is validated when you save, because a malformed one would stop backups from running. |
+| **Notification email** | Addresses that receive notifications, separated with a comma. |
 | **Discord webhook URL** | Create it in your Discord server under Integrations. |
 | **Webhook URL** | Notifications are posted as JSON. Works with Slack, Mattermost, Microsoft Teams and custom integrations. |
 
-> Slack accepts incoming webhooks, so use the **Webhook URL** field to post backup notifications to a Slack channel.
-
-A notification is sent when:
-
-- backup was successful,
-- backup has failed,
-- cleanup was successful,
-- cleanup has failed,
-- healthy backup was found,
-- unhealthy backup was found.
-
-To configure this feature go to plugin **Settings** and **Notifications** tab.
+A notification is sent when a backup or cleanup succeeds or fails, and when the monitor finds a healthy or unhealthy
+backup.
